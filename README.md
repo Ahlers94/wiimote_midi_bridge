@@ -30,19 +30,23 @@ The script listens to two separate input device nodes at once (accelerometer and
 
 ### 1. Pair the Wiimote over Bluetooth
 
-The Wiimote doesn't pair like a normal Bluetooth device — you put it in discovery mode by pressing the **1+2** buttons simultaneously (or holding the sync button under the battery cover), then pair from the Pi:
+Make sure the `hid-wiimote` kernel driver is available (it's built into most distro kernels since Linux 3.3 — no action usually needed) and that your BlueZ version includes the wiimote plugin (standard since bluez-4.96). Without `hid-wiimote` loaded, the Wiimote will still pair as a generic Bluetooth HID device, but it won't be usable — there's no protocol parser to turn its reports into evdev events.
+
+Put the Wiimote into discoverable mode using the **red sync button behind the battery cover** — it's more reliable than the 1+2-button method and, importantly, pairing this way is what enables auto-reconnect (so the Wiimote reconnects on its own when you press any button later, instead of needing to be manually re-paired every time it sleeps). It stays discoverable for about 20 seconds, so have `bluetoothctl` ready:
 
 ```bash
 sudo bluetoothctl
 # inside bluetoothctl:
 scan on
-# press 1+2 on the Wiimote, watch for something like "Nintendo RVL-CNT-01"
+# press the sync button under the battery cover, watch for "Nintendo RVL-CNT-01"
 pair <MAC_ADDRESS>
 trust <MAC_ADDRESS>
 connect <MAC_ADDRESS>
 ```
 
-The kernel's built-in `hid-wiimote` driver should pick it up automatically once connected and expose it as evdev devices — no extra userspace driver needed on modern kernels.
+This is mostly standard Bluetooth pairing, with one wrinkle: if `bluetoothctl` prompts you for a PIN during pairing, that means your `bluetoothd` doesn't have the wiimote plugin, and PIN-based bonding won't work with the Wiimote. In that case, skip pairing/bonding entirely and just connect directly — no PIN needed.
+
+Once connected, check `dmesg` for `hid-wiimote` picking up the device, and confirm the evdev nodes show up under `/dev/input/by-id/`.
 
 ### 2. Install dependencies
 
@@ -136,4 +140,4 @@ Once it's confirmed working, wrap it in a systemd unit so it starts automaticall
 
 ## License
 
-MIT (or update to whatever you prefer once this is on GitHub).
+Standard MIT License
